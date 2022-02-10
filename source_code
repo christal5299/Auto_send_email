@@ -7,7 +7,7 @@ Imports System.IO
 
 Module Module1
     Public EmailTable As String = "[PRRS System].[DBo].[PR_RS_EmailList]" ' receiver emails database
-    Public SQLConnectionString As String = "Data Source=(IP address); Initial Catalog=(database name); uid=(login id); pwd=(login pwd);"
+    Public SQLConnectionString As String = "Data Source=(server IP address); Initial Catalog=(database name); uid=(login id); pwd=(login pwd);"
     Public ReminderTable As String = "[PRRS System].[DBo].[PR_RS_Reminder]"
 
     Public Sub MAIN()
