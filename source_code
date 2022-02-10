@@ -56,7 +56,7 @@ Module Module1
     Private Sub Input_data_toPDF(table)
         Dim ActiveReminderQueryString As String = "SELECT [PR Number], [PR Type], [Purpose], [PR Prepared Date], [EmailAddress], DATEDIFF(d, [PR Prepared Date], GETDate()) AS FlowTime, [ModifiedBy] " & vbCrLf &
                                                                                "FROM " & ReminderTable & " WHERE " & vbCrLf & "([Enabled]=1) " & vbCrLf &
-                                                                               "AND ([EmailAddress]='hchu0614@nalc.npcam.com' OR [EmailAddress] = 'stevenxdeng@nalc.npcam.com')" & vbCrLf &
+                                                                               "AND ([EmailAddress]='abc@outlook.com' OR [EmailAddress] = 'ABC@outlook.com')" & vbCrLf &
                                                                                "Order by [FlowTime] Desc"
         Dim Num As Integer = 1
         Dim ActiveReminderData As DataTable = Populate(SQLConnectionString, ActiveReminderQueryString)
