@@ -1,0 +1,136 @@
+Imports System.Net.Mail
+Imports System.Net
+Imports iTextSharp
+Imports iTextSharp.text
+Imports iTextSharp.text.pdf
+Imports System.IO
+
+Module Module1
+    Public EmailTable As String = "[PRRS System].[DBo].[PR_RS_EmailList]" ' receiver emails database
+    Public SQLConnectionString As String = "Data Source=(IP address); Initial Catalog=(database name); uid=(login id); pwd=(login pwd);"
+    Public ReminderTable As String = "[PRRS System].[DBo].[PR_RS_Reminder]"
+
+    Public Sub MAIN()
+        Dim EmailList As New List(Of String)
+        EmailList = EmailCollection()
+
+        If EmailList.Count > 0 Then
+            GeneratePDF()
+            AutoSendOutlook(EmailList)
+        End If
+
+    End Sub
+
+    Private Sub GeneratePDF()
+        Dim pdf As New Document()
+        Dim td As String = String.Format("{0:MM/dd/yyyy}", DateTime.Now)
+        Try
+            Dim pdfWriter As PdfWriter = PdfWriter.GetInstance(pdf, New FileStream("\\(destination location)\Test.pdf", FileMode.Create))
+            pdf.Open()
+            Dim table As New PdfPTable({1, 2, 6, 2, 3})
+            table.WidthPercentage = 90
+            'table.SetWidths({1, 2, 6, 2, 3})
+            'cell.Colspan = 3
+            'cell.HorizontalAlignment = 1 ' 0 = left, 1 = center, 2 = right
+            pdf.Add(New Paragraph("Bi-weekly PR Progress " & td))
+            pdf.Add(New Paragraph(vbCrLf))
+
+            Dim cell = New PdfPCell(New Phrase("try"))
+
+            cell.BackgroundColor = New BaseColor(System.Drawing.Color.Yellow)
+            table.AddCell(cell)
+            'table.AddCell("No.")
+            table.AddCell("PR Number")
+            table.AddCell("Purpose")
+            table.AddCell("Elapsed Day")
+            table.AddCell("Requestor")
+            Input_data_toPDF(table)
+            pdf.Add(table)
+            pdf.Close()
+
+        Catch ex As Exception
+            Console.WriteLine("PDF write in failure.")
+        End Try
+    End Sub
+
+    Private Sub Input_data_toPDF(table)
+        Dim ActiveReminderQueryString As String = "SELECT [PR Number], [PR Type], [Purpose], [PR Prepared Date], [EmailAddress], DATEDIFF(d, [PR Prepared Date], GETDate()) AS FlowTime, [ModifiedBy] " & vbCrLf &
+                                                                               "FROM " & ReminderTable & " WHERE " & vbCrLf & "([Enabled]=1) " & vbCrLf &
+                                                                               "AND ([EmailAddress]='hchu0614@nalc.npcam.com' OR [EmailAddress] = 'stevenxdeng@nalc.npcam.com')" & vbCrLf &
+                                                                               "Order by [FlowTime] Desc"
+        Dim Num As Integer = 1
+        Dim ActiveReminderData As DataTable = Populate(SQLConnectionString, ActiveReminderQueryString)
+        If ActiveReminderData IsNot Nothing AndAlso ActiveReminderData.Rows.Count > 0 Then
+            For Each ActiveReminderRow As DataRow In ActiveReminderData.Rows
+                Dim PR_num = ActiveReminderRow("PR Number")
+                Dim ElapsedDays As Integer = ActiveReminderRow("FlowTime").ToString
+                Dim PurposeString As String = ActiveReminderRow("Purpose").ToString
+                Dim Requestor As String = ActiveReminderRow("ModifiedBy")
+                table.AddCell(Num)
+                table.AddCell(PR_num)
+                table.AddCell(PurposeString)
+                table.AddCell(ElapsedDays & " Days")
+                table.AddCell(Requestor)
+                Num += 1
+            Next
+        End If
+
+    End Sub
+
+    Private Function EmailCollection()
+        Dim GetITEmailString As String = "SELECT [IT_Email] " & vbCrLf & "FROM " & ITEmailTable & "GROUP BY [IT_Email] "
+        Dim ITEmailData As DataTable = Populate(SQLConnectionString, GetITEmailString) ' ITEmailData is a data table
+        Dim EList As New List(Of String)
+        For Each EmailRow As DataRow In ITEmailData.Rows
+            EList.Add(EmailRow("IT_Email").ToString)
+        Next
+        Return EList
+    End Function
+
+    Private Sub AutoSendOutlook(ByVal EmailList As List(Of String))
+
+        If EmailList.Count > 0 Then
+            Dim attachment As Attachment = New Attachment("\\172.16.216.5\IT\Christal\Auto PR\PR_progress.pdf")
+            Dim myOutlook As New MailMessage
+
+            With myOutlook
+                'For Each el In EmailList
+                '.To.Add(el)
+                'Next
+                .To.Add("xyz@outlook.com")
+                .From = New MailAddress("XYZ@outlook.com")
+                Dim td As String = String.Format("{0:MM/dd/yyyy}", DateTime.Now)
+                .Subject = td & "PR progress" ' "PR progress" + String.Format(Now, "yyyy/MM/dd")
+                .Body = "Hi all, " & vbCrLf & vbCrLf & "Please check out the current PR progress of the week as attached." & vbCrLf & vbCrLf &
+                        "Thanks and have a good evening."
+                .Attachments.Add(attachment)
+                '.Headers.Add("expiry-date", td)
+                '.BodyFormat = MailFormat.Text
+            End With
+
+            Dim SMTPServer As New SmtpClient
+            With SMTPServer
+                .Credentials = New NetworkCredential("PTARailcar", "ptarailcar")
+                .Port = 25
+                .Host = "172.16.216.8"
+                .Send(myOutlook)
+            End With
+        End If
+    End Sub
+
+    Public Function Populate(ByVal ThisConnectionString As String, ByVal MyCommandString As String) As DataTable
+        Try
+            Using Connection As New SqlClient.SqlConnection(ThisConnectionString),
+                    myCommand As New SqlClient.SqlCommand(MyCommandString, Connection)
+                Connection.Open()
+                Dim MyAdapter As New SqlClient.SqlDataAdapter(myCommand)
+                Dim Table As DataTable = New DataTable With {.Locale = System.Globalization.CultureInfo.InvariantCulture}
+                MyAdapter.Fill(Table)               ' Code to modify data in DataTable here 
+                Return Table
+            End Using
+        Catch ex As Exception
+            Console.WriteLine("SQL error")
+        End Try
+        Return Nothing
+    End Function
+End Module
